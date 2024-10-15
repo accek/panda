@@ -30,14 +30,16 @@ const LongitudinalLimits VOLKSWAGEN_MQB_LONG_LIMITS = {
 #define MSG_GRA_ACC_01  0x12B   // TX by OP, ACC control buttons for cancel/resume
 #define MSG_ACC_07      0x12E   // TX by OP, ACC control instructions to the drivetrain coordinator
 #define MSG_ACC_02      0x30C   // TX by OP, ACC HUD data to the instrument cluster
+#define MSG_ACC_04      0x324   // TX by OP, ACC HUD data to the instrument cluster
 #define MSG_MOTOR_14    0x3BE   // RX from ECU, for brake switch status
 #define MSG_LDW_02      0x397   // TX by OP, Lane line recognition and text alerts
 
 // Transmit of GRA_ACC_01 is allowed on bus 0 and 2 to keep compatibility with gateway and camera integration
 const CanMsg VOLKSWAGEN_MQB_STOCK_TX_MSGS[] = {{MSG_HCA_01, 0, 8}, {MSG_GRA_ACC_01, 0, 8}, {MSG_GRA_ACC_01, 2, 8},
                                                {MSG_LDW_02, 0, 8}, {MSG_LH_EPS_03, 2, 8}};
-const CanMsg VOLKSWAGEN_MQB_LONG_TX_MSGS[] = {{MSG_HCA_01, 0, 8}, {MSG_LDW_02, 0, 8}, {MSG_LH_EPS_03, 2, 8},
-                                              {MSG_ACC_02, 0, 8}, {MSG_ACC_06, 0, 8}, {MSG_ACC_07, 0, 8}};
+const CanMsg VOLKSWAGEN_MQB_LONG_TX_MSGS[] = {{MSG_HCA_01, 0, 8},
+                                              {MSG_LDW_02, 0, 8}, {MSG_LH_EPS_03, 2, 8}, {MSG_TSK_06, 2, 8},
+                                              {MSG_ACC_02, 0, 8}, {MSG_ACC_04, 0, 8}, {MSG_ACC_06, 0, 8}, {MSG_ACC_07, 0, 8}};
 
 RxCheck volkswagen_mqb_rx_checks[] = {
   {.msg = {{MSG_ESP_19, 0, 8, .check_checksum = false, .max_counter = 0U, .frequency = 100U}, { 0 }, { 0 }}},
@@ -47,6 +49,7 @@ RxCheck volkswagen_mqb_rx_checks[] = {
   {.msg = {{MSG_MOTOR_20, 0, 8, .check_checksum = true, .max_counter = 15U, .frequency = 50U}, { 0 }, { 0 }}},
   {.msg = {{MSG_MOTOR_14, 0, 8, .check_checksum = false, .max_counter = 0U, .frequency = 10U}, { 0 }, { 0 }}},
   {.msg = {{MSG_GRA_ACC_01, 0, 8, .check_checksum = true, .max_counter = 15U, .frequency = 33U}, { 0 }, { 0 }}},
+  // TODO(accek): more checks
 };
 
 uint8_t volkswagen_crc8_lut_8h2f[256]; // Static lookup table for CRC8 poly 0x2F, aka 8H2F/AUTOSAR
@@ -199,6 +202,8 @@ static bool volkswagen_mqb_tx_hook(const CANPacket_t *to_send) {
   int addr = GET_ADDR(to_send);
   bool tx = true;
 
+  // TODO: consider detesting AE pass-through and allowing forwarding everything in this case
+
   // Safety check for HCA_01 Heading Control Assist torque
   // Signal: HCA_01.HCA_01_LM_Offset (absolute torque)
   // Signal: HCA_01.HCA_01_LM_OffSign (direction)
@@ -227,8 +232,8 @@ static bool volkswagen_mqb_tx_hook(const CANPacket_t *to_send) {
       desired_accel = ((((GET_BYTE(to_send, 4) & 0x7U) << 8) | GET_BYTE(to_send, 3)) * 5U) - 7220U;
     } else {
       // Signal: ACC_07.ACC_Folgebeschl (acceleration in m/s2, scale 0.03, offset -4.6)
-      int secondary_accel = (GET_BYTE(to_send, 4) * 30U) - 4600U;
-      violation |= (secondary_accel != 3020);  // enforce always inactive (one increment above max range) at this time
+      //int secondary_accel = (GET_BYTE(to_send, 4) * 30U) - 4600U;
+      //violation |= (secondary_accel != 3020);  // enforce always inactive (one increment above max range) at this time
       // Signal: ACC_07.ACC_Sollbeschleunigung_02 (acceleration in m/s2, scale 0.005, offset -7.22)
       desired_accel = (((GET_BYTE(to_send, 7) << 3) | ((GET_BYTE(to_send, 6) & 0xE0U) >> 5)) * 5U) - 7220U;
     }
@@ -270,6 +275,13 @@ static int volkswagen_mqb_fwd_hook(int bus_num, int addr) {
       if (addr == MSG_LH_EPS_03) {
         // openpilot needs to replace apparent driver steering input torque to pacify VW Emergency Assist
         bus_fwd = -1;
+      } else if (volkswagen_longitudinal && (addr == MSG_TSK_06)) {
+        // openpilot needs to replace ACC feedback from TSK so that stock ACC would not fault
+        bus_fwd = -1;
+      } else if (volkswagen_longitudinal && (addr == MSG_GRA_ACC_01)) {
+        // openpilot needs to replace ACC control input to ensure that the stock ACC is never active, yet
+        // monitoring
+        bus_fwd = -1;
       } else {
         // Forward all remaining traffic from Extended CAN onward
         bus_fwd = 2;
@@ -279,7 +291,7 @@ static int volkswagen_mqb_fwd_hook(int bus_num, int addr) {
       if ((addr == MSG_HCA_01) || (addr == MSG_LDW_02)) {
         // openpilot takes over LKAS steering control and related HUD messages from the camera
         bus_fwd = -1;
-      } else if (volkswagen_longitudinal && ((addr == MSG_ACC_02) || (addr == MSG_ACC_06) || (addr == MSG_ACC_07))) {
+      } else if (volkswagen_longitudinal && ((addr == MSG_ACC_02) || (addr == MSG_ACC_04) || (addr == MSG_ACC_06) || (addr == MSG_ACC_07))) {
         // openpilot takes over acceleration/braking control and related HUD messages from the stock ACC radar
         bus_fwd = -1;
       } else {
