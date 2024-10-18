@@ -532,7 +532,7 @@ int ROUND(float val) {
 // Safety checks for longitudinal actuation
 bool longitudinal_accel_checks(int desired_accel, const LongitudinalLimits limits) {
   bool accel_valid = get_longitudinal_allowed() && !max_limit_check(desired_accel, limits.max_accel, limits.min_accel);
-  bool accel_inactive = desired_accel == limits.inactive_accel;
+  bool accel_inactive = desired_accel == limits.inactive_accel || desired_accel == 0;
   return !(accel_valid || accel_inactive);
 }
 
