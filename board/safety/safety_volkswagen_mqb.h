@@ -173,11 +173,17 @@ static void volkswagen_mqb_rx_hook(const CANPacket_t *to_push) {
         volkswagen_set_button_prev = set_button;
         volkswagen_resume_button_prev = resume_button;
       }
+
       // Always exit controls on rising edge of Cancel
       // Signal: GRA_ACC_01.GRA_Abbrechen
-      if (GET_BIT(to_push, 13U)) {
+      bool cancel_button = GET_BIT(to_push, 13U);
+      if (volkswagen_cancel_button_prev) {
+        // Disable controls on the next packet (test previous value of cancel button),
+        // to allow a short processing delay. Otherwise if we reject a small number of
+        // packets even over a long time, the TSK will fault.
         controls_allowed_long = false;
       }
+      volkswagen_cancel_button_prev = cancel_button;
     }
 
     // Signal: Motor_20.MO_Fahrpedalrohwert_01
