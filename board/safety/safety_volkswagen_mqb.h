@@ -21,6 +21,10 @@ const LongitudinalLimits VOLKSWAGEN_MQB_LONG_LIMITS = {
   .allow_long_with_gas_override = true,  // TSK requires valid accel input when gas is pressed
 };
 
+// Allow accel control for a short time after long is disabled. This is because rejecting even
+// single messages evenry now and then will ultimately cause the ACC module to fault.
+const uint32_t VOLKSWAGEN_MQB_ACC_CHECKS_GRACE_PERIOD_US = 30000;  // 30ms
+
 #define MSG_ESP_19      0x0B2   // RX from ABS, for wheel speeds
 #define MSG_LH_EPS_03   0x09F   // RX from EPS, for driver steering torque
 #define MSG_ESP_05      0x106   // RX from ABS, for brake switch state
@@ -58,6 +62,7 @@ RxCheck volkswagen_mqb_rx_checks[] = {
 uint8_t volkswagen_crc8_lut_8h2f[256]; // Static lookup table for CRC8 poly 0x2F, aka 8H2F/AUTOSAR
 bool volkswagen_mqb_brake_pedal_switch = false;
 bool volkswagen_mqb_brake_pressure_detected = false;
+uint32_t volkswagen_mqb_long_allowed_last_ts = 0;
 
 static uint32_t volkswagen_mqb_get_checksum(const CANPacket_t *to_push) {
   return (uint8_t)GET_BYTE(to_push, 0);
@@ -100,6 +105,12 @@ static uint32_t volkswagen_mqb_compute_crc(const CANPacket_t *to_push) {
   return (uint8_t)(crc ^ 0xFFU);
 }
 
+static bool volkswagen_mqb_longitudinal_accel_checks(int desired_accel, const LongitudinalLimits limits) {
+  return longitudinal_accel_checks(desired_accel, limits) ||
+    (get_ts_elapsed(volkswagen_mqb_long_allowed_last_ts, microsecond_timer_get()) < VOLKSWAGEN_MQB_ACC_CHECKS_GRACE_PERIOD_US &&
+      !max_limit_check(desired_accel, limits.max_accel, limits.min_accel));
+}
+
 static safety_config volkswagen_mqb_init(uint16_t param) {
   UNUSED(param);
 
@@ -107,6 +118,7 @@ static safety_config volkswagen_mqb_init(uint16_t param) {
   volkswagen_resume_button_prev = false;
   volkswagen_mqb_brake_pedal_switch = false;
   volkswagen_mqb_brake_pressure_detected = false;
+  volkswagen_mqb_long_allowed_last_ts = 0;
 
 #ifdef ALLOW_DEBUG
   volkswagen_longitudinal = GET_FLAG(param, FLAG_VOLKSWAGEN_LONG_CONTROL);
@@ -176,14 +188,9 @@ static void volkswagen_mqb_rx_hook(const CANPacket_t *to_push) {
 
       // Always exit controls on rising edge of Cancel
       // Signal: GRA_ACC_01.GRA_Abbrechen
-      bool cancel_button = GET_BIT(to_push, 13U);
-      if (volkswagen_cancel_button_prev) {
-        // Disable controls on the next packet (test previous value of cancel button),
-        // to allow a short processing delay. Otherwise if we reject a small number of
-        // packets even over a long time, the TSK will fault.
+      if (GET_BIT(to_push, 13U)) {
         controls_allowed_long = false;
       }
-      volkswagen_cancel_button_prev = cancel_button;
     }
 
     // Signal: Motor_20.MO_Fahrpedalrohwert_01
@@ -204,6 +211,17 @@ static void volkswagen_mqb_rx_hook(const CANPacket_t *to_push) {
     brake_pressed = volkswagen_mqb_brake_pedal_switch || volkswagen_mqb_brake_pressure_detected;
 
     generic_rx_checks((addr == MSG_HCA_01));
+
+    if (volkswagen_longitudinal) {
+      bool long_allowed = get_longitudinal_allowed(VOLKSWAGEN_MQB_LONG_LIMITS.allow_long_with_gas_override);
+      uint32_t now = microsecond_timer_get();
+      if (long_allowed) {
+        volkswagen_mqb_long_allowed_last_ts = now;
+      } else if (get_ts_elapsed(volkswagen_mqb_long_allowed_last_ts, now) > VOLKSWAGEN_MQB_ACC_CHECKS_GRACE_PERIOD_US) {
+        // Prevent overflow
+        volkswagen_mqb_long_allowed_last_ts = now - VOLKSWAGEN_MQB_ACC_CHECKS_GRACE_PERIOD_US - 1;
+      }
+    }
   }
 }
 
@@ -247,7 +265,7 @@ static bool volkswagen_mqb_tx_hook(const CANPacket_t *to_send) {
       desired_accel = (((GET_BYTE(to_send, 7) << 3) | ((GET_BYTE(to_send, 6) & 0xE0U) >> 5)) * 5U) - 7220U;
     }
 
-    violation |= longitudinal_accel_checks(desired_accel, VOLKSWAGEN_MQB_LONG_LIMITS);
+    violation |= volkswagen_mqb_longitudinal_accel_checks(desired_accel, VOLKSWAGEN_MQB_LONG_LIMITS);
 
     if (violation) {
       tx = false;
