@@ -18,6 +18,7 @@ const LongitudinalLimits VOLKSWAGEN_MQB_LONG_LIMITS = {
   .max_accel = 2000,
   .min_accel = -3500,
   .inactive_accel = 3010,  // VW sends one increment above the max range when inactive
+  .allow_zero_accel_when_inactive = true,
 };
 
 #define MSG_ESP_19      0x0B2   // RX from ABS, for wheel speeds
