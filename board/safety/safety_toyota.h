@@ -265,7 +265,7 @@ static bool toyota_tx_hook(const CANPacket_t *to_send) {
 
     // GAS PEDAL: safety check
     if (addr == 0x200) {
-      if (longitudinal_interceptor_checks(to_send)) {
+      if (longitudinal_interceptor_checks(to_send, TOYOTA_LONG_LIMITS)) {
         tx = false;
       }
     }

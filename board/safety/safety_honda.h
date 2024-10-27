@@ -348,7 +348,7 @@ static bool honda_tx_hook(const CANPacket_t *to_send) {
 
   // GAS: safety check (interceptor)
   if (addr == 0x200) {
-    if (longitudinal_interceptor_checks(to_send)) {
+    if (longitudinal_interceptor_checks(to_send, honda_hw == HONDA_BOSCH ? HONDA_BOSCH_LONG_LIMITS : HONDA_NIDEC_LONG_LIMITS)) {
       tx = false;
     }
   }

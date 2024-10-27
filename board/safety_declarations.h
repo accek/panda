@@ -92,7 +92,7 @@ typedef struct {
   const int max_accel;
   const int min_accel;
   const int inactive_accel;
-  const bool allow_zero_accel_when_inactive;
+  const bool allow_long_with_gas_override;
 
   // gas & brake cmd limits
   // inactive and min gas are 0 on most safety modes
@@ -180,7 +180,7 @@ bool dist_to_meas_check(int val, int val_last, struct sample_t *val_meas,
 bool driver_limit_check(int val, int val_last, const struct sample_t *val_driver,
   const int MAX, const int MAX_RATE_UP, const int MAX_RATE_DOWN,
   const int MAX_ALLOWANCE, const int DRIVER_FACTOR);
-bool get_longitudinal_allowed(void);
+bool get_longitudinal_allowed(bool allow_long_with_gas_override);
 bool rt_rate_limit_check(int val, int val_last, const int MAX_RT_DELTA);
 float interpolate(struct lookup_t xy, float x);
 int ROUND(float val);
@@ -204,7 +204,7 @@ bool longitudinal_speed_checks(int desired_speed, const LongitudinalLimits limit
 bool longitudinal_gas_checks(int desired_gas, const LongitudinalLimits limits);
 bool longitudinal_transmission_rpm_checks(int desired_transmission_rpm, const LongitudinalLimits limits);
 bool longitudinal_brake_checks(int desired_brake, const LongitudinalLimits limits);
-bool longitudinal_interceptor_checks(const CANPacket_t *to_send);
+bool longitudinal_interceptor_checks(const CANPacket_t *to_send, const LongitudinalLimits limits);
 void pcm_cruise_check(bool cruise_engaged);
 
 void safety_tick(const safety_config *safety_config);
