@@ -116,6 +116,7 @@ static safety_config volkswagen_mqb_init(uint16_t param) {
 
   volkswagen_set_button_prev = false;
   volkswagen_resume_button_prev = false;
+  volkswagen_stock_acc_engaged = false;
   volkswagen_mqb_brake_pedal_switch = false;
   volkswagen_mqb_brake_pressure_detected = false;
   volkswagen_mqb_long_allowed_last_ts = 0;
@@ -129,8 +130,17 @@ static safety_config volkswagen_mqb_init(uint16_t param) {
 }
 
 static void volkswagen_mqb_rx_hook(const CANPacket_t *to_push) {
-  if (GET_BUS(to_push) == 0U) {
-    int addr = GET_ADDR(to_push);
+  int bus = GET_BUS(to_push);
+  int addr = GET_ADDR(to_push);
+
+  if (bus == 2 && volkswagen_longitudinal) {
+
+    if (addr == MSG_ACC_06) {
+      int acc_status = (GET_BYTE(to_push, 7) & 0x70U) >> 4;
+      volkswagen_stock_acc_engaged = (acc_status == 3) || (acc_status == 4) || (acc_status == 5);
+    }
+
+  } else if (bus == 0) {
 
     // Update in-motion state by sampling wheel speeds
     if (addr == MSG_ESP_19) {
@@ -248,6 +258,12 @@ static bool volkswagen_mqb_tx_hook(const CANPacket_t *to_send) {
     }
   }
 
+  // Do not allow injecting ACC messages if we forward them from the stock ACC module
+  if (volkswagen_longitudinal && volkswagen_stock_acc_engaged
+      && ((addr == MSG_ACC_02) || (addr == MSG_ACC_04) || (addr == MSG_ACC_06) || (addr == MSG_ACC_07) || (addr == MSG_ACC_13))) {
+    tx = false;
+  }
+
   // Safety check for both ACC_06 and ACC_07 acceleration requests
   // To avoid floating point math, scale upward and compare to pre-scaled safety m/s2 boundaries
   if ((addr == MSG_ACC_06) || (addr == MSG_ACC_07)) {
@@ -320,7 +336,8 @@ static int volkswagen_mqb_fwd_hook(int bus_num, int addr) {
       if ((addr == MSG_HCA_01) || (addr == MSG_LDW_02)) {
         // openpilot takes over LKAS steering control and related HUD messages from the camera
         bus_fwd = -1;
-      } else if (volkswagen_longitudinal && ((addr == MSG_ACC_02) || (addr == MSG_ACC_04) || (addr == MSG_ACC_06) || (addr == MSG_ACC_07) || (addr == MSG_ACC_13))) {
+      } else if (volkswagen_longitudinal && !volkswagen_stock_acc_engaged
+          && ((addr == MSG_ACC_02) || (addr == MSG_ACC_04) || (addr == MSG_ACC_06) || (addr == MSG_ACC_07) || (addr == MSG_ACC_13))) {
         // openpilot takes over acceleration/braking control and related HUD messages from the stock ACC radar
         bus_fwd = -1;
       } else {
