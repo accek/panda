@@ -260,7 +260,7 @@ static bool volkswagen_mqb_tx_hook(const CANPacket_t *to_send) {
 
   // Do not allow injecting ACC messages if we forward them from the stock ACC module
   if (volkswagen_longitudinal && volkswagen_stock_acc_engaged
-      && ((addr == MSG_ACC_02) || (addr == MSG_ACC_04) || (addr == MSG_ACC_06) || (addr == MSG_ACC_07) || (addr == MSG_ACC_13))) {
+      && ((addr == MSG_ACC_02) || (addr == MSG_ACC_04) || (addr == MSG_ACC_06) || (addr == MSG_ACC_07) || (addr == MSG_ACC_13) || (addr == MSG_TSK_06))) {
     tx = false;
   }
 
@@ -320,7 +320,7 @@ static int volkswagen_mqb_fwd_hook(int bus_num, int addr) {
       if (addr == MSG_LH_EPS_03) {
         // openpilot needs to replace apparent driver steering input torque to pacify VW Emergency Assist
         bus_fwd = -1;
-      } else if (volkswagen_longitudinal && (addr == MSG_TSK_06)) {
+      } else if (volkswagen_longitudinal && !volkswagen_stock_acc_engaged && (addr == MSG_TSK_06)) {
         // openpilot needs to replace ACC feedback from TSK so that stock ACC would not fault
         bus_fwd = -1;
       } else if (volkswagen_longitudinal && (addr == MSG_GRA_ACC_01)) {
