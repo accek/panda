@@ -300,9 +300,7 @@ static bool volkswagen_mqb_tx_hook(const CANPacket_t *to_send) {
     bool is_accel_cruise = GET_BIT(to_send, 17U) != 0U;
     bool is_decel_cruise = GET_BIT(to_send, 18U) != 0U;
     bool is_cancel = GET_BIT(to_send, 13U) != 0U;
-
-    bool allowed = (volkswagen_longitudinal && !is_set_cruise && !is_resume_cruise && !is_accel_cruise && !is_decel_cruise) ||
-                   (is_cancel && cruise_engaged_prev) ||
+    bool allowed = volkswagen_longitudinal || (is_cancel && cruise_engaged_prev) ||
                    ((is_set_cruise || is_resume_cruise || is_accel_cruise || is_decel_cruise) && controls_allowed && controls_allowed_long);
     if (!allowed) {
       tx = false;
