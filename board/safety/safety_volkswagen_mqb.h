@@ -23,7 +23,7 @@ const LongitudinalLimits VOLKSWAGEN_MQB_LONG_LIMITS = {
 
 // Allow accel control for a short time after long is disabled. This is because rejecting even
 // single messages evenry now and then will ultimately cause the ACC module to fault.
-const uint32_t VOLKSWAGEN_MQB_ACC_CHECKS_GRACE_PERIOD_US = 30000;  // 30ms
+const uint32_t VOLKSWAGEN_MQB_ACC_CHECKS_GRACE_PERIOD_US = 50000;  // 50ms
 
 #define MSG_ESP_19      0x0B2   // RX from ABS, for wheel speeds
 #define MSG_LH_EPS_03   0x09F   // RX from EPS, for driver steering torque
