@@ -137,7 +137,7 @@ static void volkswagen_mqb_rx_hook(const CANPacket_t *to_push) {
 
     if (addr == MSG_ACC_06) {
       int acc_status = (GET_BYTE(to_push, 7) & 0x70U) >> 4;
-      volkswagen_stock_acc_engaged = (acc_status == 3) || (acc_status == 4) || (acc_status == 5);
+      volkswagen_stock_acc_engaged = (acc_status == 3) || (acc_status == 4) || (acc_status == 5) || (acc_status == 6);
     }
 
   } else if (bus == 0) {
