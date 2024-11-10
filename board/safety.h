@@ -85,8 +85,8 @@ bool safety_tx_hook(CANPacket_t *to_send) {
   return !relay_malfunction && whitelisted && safety_allowed;
 }
 
-int safety_fwd_hook(int bus_num, int addr) {
-  return (relay_malfunction ? -1 : current_hooks->fwd(bus_num, addr));
+int safety_fwd_hook(CANPacket_t *to_push) {
+  return (relay_malfunction ? -1 : current_hooks->fwd(to_push));
 }
 
 bool get_longitudinal_allowed(bool allow_long_with_gas_override) {

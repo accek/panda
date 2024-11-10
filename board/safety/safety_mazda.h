@@ -106,7 +106,9 @@ static bool mazda_tx_hook(const CANPacket_t *to_send) {
   return tx;
 }
 
-static int mazda_fwd_hook(int bus, int addr) {
+static int mazda_fwd_hook(const CANPacket_t *to_push) {
+  int bus = GET_BUS(to_push);
+  int addr = GET_ADDR(to_push);
   int bus_fwd = -1;
 
   if (bus == MAZDA_MAIN) {

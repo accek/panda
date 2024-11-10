@@ -260,7 +260,9 @@ static bool subaru_tx_hook(const CANPacket_t *to_send) {
   return tx;
 }
 
-static int subaru_fwd_hook(int bus_num, int addr) {
+static int subaru_fwd_hook(const CANPacket_t *to_push) {
+  int bus_num = GET_BUS(to_push);
+  int addr = GET_ADDR(to_push);
   int bus_fwd = -1;
 
   if (bus_num == SUBARU_MAIN_BUS) {

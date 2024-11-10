@@ -262,7 +262,9 @@ static bool chrysler_tx_hook(const CANPacket_t *to_send) {
   return tx;
 }
 
-static int chrysler_fwd_hook(int bus_num, int addr) {
+static int chrysler_fwd_hook(const CANPacket_t *to_push) {
+  int bus_num = GET_BUS(to_push);
+  int addr = GET_ADDR(to_push);
   int bus_fwd = -1;
 
   // forward all messages from car to camera except CRUISE_BUTTONS messages for Ram platforms

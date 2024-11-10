@@ -14,9 +14,8 @@ static bool nooutput_tx_hook(const CANPacket_t *to_send) {
   return false;
 }
 
-static int default_fwd_hook(int bus_num, int addr) {
-  UNUSED(bus_num);
-  UNUSED(addr);
+static int default_fwd_hook(const CANPacket_t *to_push) {
+  UNUSED(to_push);
   return -1;
 }
 
@@ -44,9 +43,9 @@ static bool alloutput_tx_hook(const CANPacket_t *to_send) {
   return true;
 }
 
-static int alloutput_fwd_hook(int bus_num, int addr) {
+static int alloutput_fwd_hook(const CANPacket_t *to_push) {
+  int bus_num = GET_BUS(to_push);
   int bus_fwd = -1;
-  UNUSED(addr);
 
   if (alloutput_passthrough) {
     if (bus_num == 0) {
