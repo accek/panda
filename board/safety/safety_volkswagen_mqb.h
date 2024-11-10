@@ -64,6 +64,13 @@ bool volkswagen_mqb_brake_pedal_switch = false;
 bool volkswagen_mqb_brake_pressure_detected = false;
 uint32_t volkswagen_mqb_long_allowed_last_ts = 0;
 
+bool volksvagen_mqb_stock_TSK_06_forwarded = false;
+bool volksvagen_mqb_stock_ACC_02_forwarded = false;
+bool volksvagen_mqb_stock_ACC_04_forwarded = false;
+bool volksvagen_mqb_stock_ACC_06_forwarded = false;
+bool volksvagen_mqb_stock_ACC_07_forwarded = false;
+bool volksvagen_mqb_stock_ACC_13_forwarded = false;
+
 static uint32_t volkswagen_mqb_get_checksum(const CANPacket_t *to_push) {
   return (uint8_t)GET_BYTE(to_push, 0);
 }
@@ -121,6 +128,13 @@ static safety_config volkswagen_mqb_init(uint16_t param) {
   volkswagen_mqb_brake_pressure_detected = false;
   volkswagen_mqb_long_allowed_last_ts = 0;
 
+  volksvagen_mqb_stock_TSK_06_forwarded = false;
+  volksvagen_mqb_stock_ACC_02_forwarded = false;
+  volksvagen_mqb_stock_ACC_04_forwarded = false;
+  volksvagen_mqb_stock_ACC_06_forwarded = false;
+  volksvagen_mqb_stock_ACC_07_forwarded = false;
+  volksvagen_mqb_stock_ACC_13_forwarded = false;
+
 #ifdef ALLOW_DEBUG
   volkswagen_longitudinal = GET_FLAG(param, FLAG_VOLKSWAGEN_LONG_CONTROL);
 #endif
@@ -138,6 +152,15 @@ static void volkswagen_mqb_rx_hook(const CANPacket_t *to_push) {
     if (addr == MSG_ACC_06) {
       int acc_status = (GET_BYTE(to_push, 7) & 0x70U) >> 4;
       volkswagen_stock_acc_engaged = (acc_status == 3) || (acc_status == 4) || (acc_status == 5) || (acc_status == 6);
+
+      if (!volkswagen_stock_acc_engaged) {
+        volksvagen_mqb_stock_TSK_06_forwarded = false;
+        volksvagen_mqb_stock_ACC_02_forwarded = false;
+        volksvagen_mqb_stock_ACC_04_forwarded = false;
+        volksvagen_mqb_stock_ACC_06_forwarded = false;
+        volksvagen_mqb_stock_ACC_07_forwarded = false;
+        volksvagen_mqb_stock_ACC_13_forwarded = false;
+      }
     }
 
   } else if (bus == 0) {
@@ -260,7 +283,15 @@ static bool volkswagen_mqb_tx_hook(const CANPacket_t *to_send) {
 
   // Do not allow injecting ACC messages if we forward them from the stock ACC module
   if (volkswagen_longitudinal && volkswagen_stock_acc_engaged
-      && ((addr == MSG_ACC_02) || (addr == MSG_ACC_04) || (addr == MSG_ACC_06) || (addr == MSG_ACC_07) || (addr == MSG_ACC_13) || (addr == MSG_TSK_06))) {
+      && (
+        // Thou shalt not lose even a single message
+        (addr == MSG_ACC_02 && volksvagen_mqb_stock_ACC_02_forwarded) ||
+        (addr == MSG_ACC_04 && volksvagen_mqb_stock_ACC_04_forwarded) ||
+        (addr == MSG_ACC_06 && volksvagen_mqb_stock_ACC_06_forwarded) ||
+        (addr == MSG_ACC_07 && volksvagen_mqb_stock_ACC_07_forwarded) ||
+        (addr == MSG_ACC_13 && volksvagen_mqb_stock_ACC_13_forwarded) ||
+        (addr == MSG_TSK_06 && volksvagen_mqb_stock_TSK_06_forwarded)
+      )) {
     tx = false;
   }
 
@@ -328,6 +359,10 @@ static int volkswagen_mqb_fwd_hook(int bus_num, int addr) {
       } else {
         // Forward all remaining traffic from Extended CAN onward
         bus_fwd = 2;
+
+        if (addr == MSG_TSK_06) {
+          volksvagen_mqb_stock_TSK_06_forwarded = true;
+        }
       }
       break;
     case 2:
@@ -341,6 +376,18 @@ static int volkswagen_mqb_fwd_hook(int bus_num, int addr) {
       } else {
         // Forward all remaining traffic from Extended CAN devices to J533 gateway
         bus_fwd = 0;
+
+        if (addr == MSG_ACC_02) {
+          volksvagen_mqb_stock_ACC_02_forwarded = true;
+        } else if (addr == MSG_ACC_04) {
+          volksvagen_mqb_stock_ACC_04_forwarded = true;
+        } else if (addr == MSG_ACC_06) {
+          volksvagen_mqb_stock_ACC_06_forwarded = true;
+        } else if (addr == MSG_ACC_07) {
+          volksvagen_mqb_stock_ACC_07_forwarded = true;
+        } else if (addr == MSG_ACC_13) {
+          volksvagen_mqb_stock_ACC_13_forwarded = true;
+        }
       }
       break;
     default:
