@@ -264,7 +264,7 @@ static bool volkswagen_mqb_long_counter_check_and_update(const CANPacket_t *to_s
   for (MqbCounterCheck* check = &volkswagen_mqb_long_counter_checks[0]; check->msg.addr != -1; check++) {
     if (check->msg.addr == addr && check->msg.bus == tx_bus) {
       uint8_t counter = volkswagen_mqb_get_counter(to_send);
-      if (counter == check->last_counter) {
+      if (counter != ((check->last_counter + 1) % 16) && check->last_counter != -1) {
         return false;
       } else {
         check->last_counter = counter;
