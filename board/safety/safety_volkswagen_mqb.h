@@ -252,7 +252,7 @@ static void volkswagen_mqb_rx_hook(const CANPacket_t *to_push) {
       uint32_t now = microsecond_timer_get();
       if (long_allowed) {
         volkswagen_mqb_long_allowed_last_ts = now;
-      } else if (get_ts_elapsed(volkswagen_mqb_long_allowed_last_ts, now) > VOLKSWAGEN_MQB_ACC_CHECKS_GRACE_PERIOD_US) {
+      } else if (get_ts_elapsed(now, volkswagen_mqb_long_allowed_last_ts) > VOLKSWAGEN_MQB_ACC_CHECKS_GRACE_PERIOD_US) {
         // Prevent overflow
         volkswagen_mqb_long_allowed_last_ts = now - VOLKSWAGEN_MQB_ACC_CHECKS_GRACE_PERIOD_US - 1;
       }
@@ -397,8 +397,10 @@ static int volkswagen_mqb_fwd_hook(const CANPacket_t *to_push) {
 
   // This is mostly to update counters to avoid duplicate messages when switching from stock to OP.
   // The check should never fail.
-  if (volkswagen_longitudinal && bus_fwd != -1 && !volkswagen_mqb_long_counter_check_and_update(to_push, bus_fwd)) {
-    bus_fwd = -1;
+  if (volkswagen_longitudinal && bus_fwd != -1) {
+    if (!volkswagen_mqb_long_counter_check_and_update(to_push, bus_fwd)) {
+      bus_fwd = -1;
+    }
   }
 
   return bus_fwd;
