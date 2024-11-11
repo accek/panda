@@ -68,12 +68,12 @@ typedef struct {
 } MqbCounterCheck;
 
 MqbCounterCheck volkswagen_mqb_long_counter_checks[] = {
-  {.msg = {MSG_ACC_02, 0, 8}, .last_counter = 0},
-  {.msg = {MSG_ACC_04, 0, 8}, .last_counter = 0},
-  {.msg = {MSG_ACC_06, 0, 8}, .last_counter = 0},
-  {.msg = {MSG_ACC_07, 0, 8}, .last_counter = 0},
-  {.msg = {MSG_ACC_13, 0, 8}, .last_counter = 0},
-  {.msg = {MSG_TSK_06, 2, 8}, .last_counter = 0},
+  {.msg = {MSG_ACC_02, 0, 8}},
+  {.msg = {MSG_ACC_04, 0, 8}},
+  {.msg = {MSG_ACC_06, 0, 8}},
+  {.msg = {MSG_ACC_07, 0, 8}},
+  {.msg = {MSG_ACC_13, 0, 8}},
+  {.msg = {MSG_TSK_06, 2, 8}},
   {.msg = {-1, 0, 0}},
 };
 
@@ -164,14 +164,7 @@ static void volkswagen_mqb_rx_hook(const CANPacket_t *to_push) {
   int bus = GET_BUS(to_push);
   int addr = GET_ADDR(to_push);
 
-  if (bus == 2 && volkswagen_longitudinal) {
-
-    if (addr == MSG_ACC_06) {
-      int acc_status = (GET_BYTE(to_push, 7) & 0x70U) >> 4;
-      volkswagen_stock_acc_engaged = (acc_status == 3) || (acc_status == 4) || (acc_status == 5) || (acc_status == 6);
-    }
-
-  } else if (bus == 0) {
+  if (bus == 0) {
 
     // Update in-motion state by sampling wheel speeds
     if (addr == MSG_ESP_19) {
@@ -379,6 +372,10 @@ static int volkswagen_mqb_fwd_hook(const CANPacket_t *to_push) {
       }
       break;
     case 2:
+      if (volkswagen_longitudinal && addr == MSG_ACC_06) {
+        int acc_status = (GET_BYTE(to_push, 7) & 0x70U) >> 4;
+        volkswagen_stock_acc_engaged = (acc_status == 3) || (acc_status == 4) || (acc_status == 5) || (acc_status == 6);
+      }
       if ((addr == MSG_HCA_01) || (addr == MSG_LDW_02)) {
         // openpilot takes over LKAS steering control and related HUD messages from the camera
         bus_fwd = -1;
