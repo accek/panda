@@ -132,9 +132,13 @@ static uint32_t volkswagen_mqb_compute_crc(const CANPacket_t *to_push) {
 }
 
 static bool volkswagen_mqb_longitudinal_accel_checks(int desired_accel, const LongitudinalLimits limits) {
-  return longitudinal_accel_checks(desired_accel, limits) ||
-    (get_ts_elapsed(microsecond_timer_get(), volkswagen_mqb_long_allowed_last_ts) < VOLKSWAGEN_MQB_ACC_CHECKS_GRACE_PERIOD_US &&
-      !max_limit_check(desired_accel, limits.max_accel, limits.min_accel));
+  if (!longitudinal_accel_checks(desired_accel, limits)) {
+    return false;
+  }
+  if (get_ts_elapsed(microsecond_timer_get(), volkswagen_mqb_long_allowed_last_ts) < VOLKSWAGEN_MQB_ACC_CHECKS_GRACE_PERIOD_US) {
+    return max_limit_check(desired_accel, limits.max_accel, limits.min_accel);
+  }
+  return true;
 }
 
 static safety_config volkswagen_mqb_init(uint16_t param) {
@@ -212,8 +216,7 @@ static void volkswagen_mqb_rx_hook(const CANPacket_t *to_push) {
       if (volkswagen_longitudinal) {
         bool set_button = GET_BIT(to_push, 16U);
         bool resume_button = GET_BIT(to_push, 19U);
-        //if ((volkswagen_set_button_prev && !set_button) || (volkswagen_resume_button_prev && !resume_button)) {
-        if (set_button || resume_button) {
+        if ((volkswagen_set_button_prev && !set_button) || (volkswagen_resume_button_prev && !resume_button)) {
           controls_allowed = acc_main_on;
           controls_allowed_long = acc_main_on;
         }
