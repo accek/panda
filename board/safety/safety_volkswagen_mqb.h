@@ -133,7 +133,7 @@ static uint32_t volkswagen_mqb_compute_crc(const CANPacket_t *to_push) {
 
 static bool volkswagen_mqb_longitudinal_accel_checks(int desired_accel, const LongitudinalLimits limits) {
   return longitudinal_accel_checks(desired_accel, limits) ||
-    (get_ts_elapsed(volkswagen_mqb_long_allowed_last_ts, microsecond_timer_get()) < VOLKSWAGEN_MQB_ACC_CHECKS_GRACE_PERIOD_US &&
+    (get_ts_elapsed(microsecond_timer_get(), volkswagen_mqb_long_allowed_last_ts) < VOLKSWAGEN_MQB_ACC_CHECKS_GRACE_PERIOD_US &&
       !max_limit_check(desired_accel, limits.max_accel, limits.min_accel));
 }
 
