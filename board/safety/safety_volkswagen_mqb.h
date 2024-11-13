@@ -378,7 +378,10 @@ static int volkswagen_mqb_fwd_hook(const CANPacket_t *to_push) {
     case 2:
       if (volkswagen_longitudinal && addr == MSG_ACC_06) {
         int acc_status = (GET_BYTE(to_push, 7) & 0x70U) >> 4;
-        volkswagen_stock_acc_engaged = (acc_status == 3) || (acc_status == 4) || (acc_status == 5) || (acc_status == 6);
+        int desired_accel = ((((GET_BYTE(to_push, 4) & 0x7U) << 8) | GET_BYTE(to_push, 3)) * 5U) - 7220U;
+        volkswagen_stock_acc_engaged =
+            (((acc_status == 3) || (acc_status == 4)) && desired_accel < VOLKSWAGEN_MQB_LONG_LIMITS.inactive_accel) ||
+            (acc_status == 5) || (acc_status == 6) || (acc_status == 7);
       }
       if ((addr == MSG_HCA_01) || (addr == MSG_LDW_02)) {
         // openpilot takes over LKAS steering control and related HUD messages from the camera
