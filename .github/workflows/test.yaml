@@ -4,11 +4,10 @@ on:
   push:
     branches:
       - master
-      - master-new
   pull_request:
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref != 'refs/heads/master-new' && github.ref != 'refs/heads/master' && github.ref || github.run_id }}-${{ github.event_name }}
+  group: ${{ github.workflow }}-${{ github.ref != 'refs/heads/master' && github.ref || github.run_id }}-${{ github.event_name }}
   cancel-in-progress: true
 
 env:
@@ -81,4 +80,4 @@ jobs:
       - name: tests/misra/install.sh
         run: ${{ env.RUN }} "cd tests/misra && ./install.sh"
       - name: MISRA mutation tests
-        run: ${{ env.RUN }} "cd tests/misra && pytest -n2 test_mutation.py"
+        run: ${{ env.RUN }} "cd tests/misra && pytest test_mutation.py"
