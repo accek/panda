@@ -35,7 +35,10 @@ dev = [
   "ruff",
   "setuptools",
   "gcc-arm-none-eabi @ git+https://github.com/commaai/dependencies.git@release-gcc-arm-none-eabi#subdirectory=gcc-arm-none-eabi",
-  "cppcheck @ git+https://github.com/commaai/dependencies.git@release-cppcheck#subdirectory=cppcheck",
+  # ACSPilot: pin cppcheck to a fixed tag instead of the moving @release-cppcheck branch. The branch was
+  # bumped to 2.21.0 (2026-06-22), which flags ~28 spurious misra-c2012-17.3 on stock code against this
+  # fork's frozen MISRA baseline; v2.16.0 matches the v2026.001.007-era baseline.
+  "cppcheck @ git+https://github.com/commaai/dependencies.git@cppcheck/v2.16.0#subdirectory=cppcheck",
 ]
 
 [build-system]
